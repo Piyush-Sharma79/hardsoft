@@ -1,0 +1,13 @@
+{
+  "name": "mastitis-detection",
+  "version": "1.0.0",
+  "description": "Cow Mastitis Detection System",
+  "scripts": {
+    "start": "docker-compose up",
+    "dev": "docker-compose -f docker-compose.dev.yml up",
+    "build": "docker-compose build"
+  },
+  "keywords": ["mastitis", "cow-health", "detection"],
+  "author": "",
+  "license": "ISC"
+}
