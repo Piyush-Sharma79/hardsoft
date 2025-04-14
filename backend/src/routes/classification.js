@@ -19,14 +19,38 @@ function calculateClassification(data) {
     confidence += 0.1;
   }
 
-  // Check measurement asymmetry
-  const checkAsymmetry = (measurements) => {
-    const avg = measurements.reduce((a, b) => a + b, 0) / measurements.length;
-    const maxDiff = Math.max(...measurements.map(m => Math.abs(m - avg)));
-    return maxDiff > avg * 0.3; // 30% threshold for significant asymmetry
+  // Check measurement asymmetry between left and right sides
+  const leftSideAvg = (Number(data.udderMeasurements.IUFL) + Number(data.udderMeasurements.EUFL) +
+                       Number(data.udderMeasurements.IURL) + Number(data.udderMeasurements.EURL)) / 4;
+  const rightSideAvg = (Number(data.udderMeasurements.IUFR) + Number(data.udderMeasurements.EUFR) +
+                        Number(data.udderMeasurements.IURR) + Number(data.udderMeasurements.EURR)) / 4;
+
+  const asymmetryPercentage = Math.abs(leftSideAvg - rightSideAvg) / ((leftSideAvg + rightSideAvg) / 2);
+
+  if (asymmetryPercentage > 0.3) { // More than 30% difference
+    riskFactors += 2;
+    confidence += 0.15;
+  }
+
+  // Check inhale-exhale differences
+  const checkBreathingDifference = (inhale, exhale) => {
+    const diff = Math.abs(inhale - exhale);
+    return diff > (inhale * 0.4); // More than 40% difference between inhale and exhale
   };
 
-  if (checkAsymmetry(data.measurements.leftRight)) {
+  // Check each quarter for breathing irregularities
+  const quarters = [
+    { inhale: data.udderMeasurements.IUFL, exhale: data.udderMeasurements.EUFL },
+    { inhale: data.udderMeasurements.IUFR, exhale: data.udderMeasurements.EUFR },
+    { inhale: data.udderMeasurements.IURL, exhale: data.udderMeasurements.EURL },
+    { inhale: data.udderMeasurements.IURR, exhale: data.udderMeasurements.EURR }
+  ];
+
+  const irregularQuarters = quarters.filter(q =>
+    checkBreathingDifference(Number(q.inhale), Number(q.exhale))
+  ).length;
+
+  if (irregularQuarters >= 2) {
     riskFactors += 2;
     confidence += 0.15;
   }
@@ -39,7 +63,14 @@ function calculateClassification(data) {
 
   return {
     classification: isUnhealthy ? 'unhealthy' : 'healthy',
-    confidence
+    confidence,
+    riskFactors,
+    details: {
+      temperatureRisk: data.temperature > 39.3,
+      calvingRisk: data.monthsAfterCalving <= 3,
+      asymmetryRisk: asymmetryPercentage > 0.3,
+      breathingIrregularities: irregularQuarters
+    }
   };
 }
 
@@ -47,30 +78,37 @@ function calculateClassification(data) {
 router.post('/', async (req, res) => {
   try {
     const {
-      measurements,
+      udderMeasurements,
       monthsAfterCalving,
       temperature
     } = req.body;
 
     // Validate input
-    if (!measurements?.exhaleInhale || !measurements?.frontRear || !measurements?.leftRight ||
+    if (!udderMeasurements?.IUFL || !udderMeasurements?.EUFL ||
+        !udderMeasurements?.IUFR || !udderMeasurements?.EUFR ||
+        !udderMeasurements?.IURL || !udderMeasurements?.EURL ||
+        !udderMeasurements?.IURR || !udderMeasurements?.EURR ||
         monthsAfterCalving === undefined || temperature === undefined) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({
+        error: 'Missing required fields',
+        received: { udderMeasurements, monthsAfterCalving, temperature }
+      });
     }
 
     // Calculate classification
     const result = calculateClassification({
-      measurements,
+      udderMeasurements,
       monthsAfterCalving,
       temperature
     });
 
     // Create new record
     const cowHealth = new CowHealth({
-      measurements,
+      udderMeasurements,
       monthsAfterCalving,
       temperature,
-      ...result
+      classification: result.classification,
+      confidence: result.confidence
     });
 
     // Save to database
@@ -79,7 +117,7 @@ router.post('/', async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Classification error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 

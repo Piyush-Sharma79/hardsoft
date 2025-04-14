@@ -18,7 +18,9 @@ const cowHealthSchema = new mongoose.Schema({
   },
   temperature: {
     type: Number,
-    required: true
+    required: true,
+    min: 35,
+    max: 45
   },
   classification: {
     type: String,
