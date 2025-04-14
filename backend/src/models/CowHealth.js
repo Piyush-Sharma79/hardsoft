@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 
 const cowHealthSchema = new mongoose.Schema({
-  // Udder measurements
   udderMeasurements: {
     IUFL: { type: Number, required: true }, // Inhale Upper Front Left
     EUFL: { type: Number, required: true }, // Exhale Upper Front Left
@@ -12,20 +11,18 @@ const cowHealthSchema = new mongoose.Schema({
     IURR: { type: Number, required: true }, // Inhale Upper Rear Right
     EURR: { type: Number, required: true }, // Exhale Upper Rear Right
   },
-  months_after_giving_birth: {
+  monthsAfterCalving: {
     type: Number,
     required: true,
     min: 0
   },
   temperature: {
     type: Number,
-    required: true,
-    min: 35,
-    max: 43
+    required: true
   },
-  health_status: {
+  classification: {
     type: String,
-    enum: ['healthy', 'mastitis'],
+    enum: ['healthy', 'unhealthy'],
     required: true
   },
   confidence: {
