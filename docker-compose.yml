@@ -5,6 +5,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: ${DOCKER_HUB_USERNAME}/mastitis-frontend:latest
     ports:
       - "3000:3000"
     environment:
@@ -16,6 +17,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: ${DOCKER_HUB_USERNAME}/mastitis-backend:latest
     ports:
       - "5000:5000"
     environment:
